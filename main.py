@@ -1,7 +1,7 @@
 # Copyright 2023 marcus
 # More details below
 
-# import gmplot
+# import gmplo  t
 import gpxpy
 import gpxpy.gpx
 import numpy as np
@@ -50,22 +50,33 @@ def calculate_velocity(point1, point2):
     velocity = distance / time_diff if time_diff != 0 else 0
     return velocity
 
+# def get_total_average_velocity(velocities):
+#     average = sum(velocities) / len(velocities)
+#     return average
+
 
 def main():
-    file_path = './data/Route from 2023-04-19 09 09_20230419090901.gpx'
+    subject = "subject_2"
+    file_path = './data/'+subject+'--1.gpx'
     gpx_data = read_gpx_file(file_path)
 
     points = []
     velocities = []
+    distance = 0.0
     for track in gpx_data.tracks:
         for segment in track.segments:
             for i in range(len(segment.points) - 1):
                 point1 = segment.points[i]
                 point2 = segment.points[i + 1]
+                distance += point1.distance_2d(point2)
                 velocity = calculate_velocity(point1, point2)
+
                 points.append((point1.latitude, point1.longitude))
                 velocities.append(velocity)
 
+    average_velocity = sum(velocities) / len(velocities)
+    print(f"average_velocity : {average_velocity}")
+    print(f"distance : {distance}")
 
     epsilon = 0.0003 # 0.001 might be also good
     print("points len: ", len(points))
@@ -92,7 +103,7 @@ def main():
             grouped_velocities.append(velocity_sum/velocity_count)
             if grouped_velocities[-1] > max_velocity:
                 max_velocity = grouped_velocities[-1]
-            elif grouped_velocities[-1] < max_velocity:
+            elif grouped_velocities[-1] < min_velocity:
                 min_velocity = grouped_velocities[-1]
             velocity_sum = velocities[v_it]
             velocity_count = 1
@@ -103,17 +114,20 @@ def main():
         velocity_count += 1
 
     print("len(grouped_velocities):",len(grouped_velocities))
-    print("grouped_velocities:",grouped_velocities)
-    print(max_velocity)
-    print(min_velocity)
+    print("grouped_velocities:\t",grouped_velocities)
+    print("max_velocity:\t",max_velocity)
+    print("min_velocity:\t",min_velocity)
 
     latitude = [point[0] for point in grouped_points]
     longitude = [point[1] for point in grouped_points]
 
     if velocities:
         normalized_grouped_velocities = (np.array(grouped_velocities) - min_velocity) / (max_velocity - min_velocity)
-    else:
-        grouped_velocities = []
+
+    normalized_grouped_velocities = abs(normalized_grouped_velocities)
+    # for v in normalized_grouped_velocities:
+    #     v = abs(v)
+
 
     cmap = plt.get_cmap('coolwarm_r')
     norm = Normalize(vmin=min_velocity, vmax=max_velocity)
@@ -126,14 +140,16 @@ def main():
 
         t_color = cmap(normalized_grouped_velocities[i])
         ax.plot(x, y, color=t_color, linewidth=2)
+        print("%i = %.2f" %(i,normalized_grouped_velocities[i]))
 
     cbar = plt.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), label='Normalized Velocity')
+
     plt.xlabel('Longitude')
     plt.ylabel('Latitude')
     plt.title('Grouped Points with Speed Gradient')
     plt.grid(True)
 
-    save_path = "./test.png"
+    save_path = "./"+subject+".png"
     plt.savefig(save_path)
     plt.show()
 
